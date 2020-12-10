@@ -21,7 +21,7 @@
 
 NAME="xaide"
 AUTHOR="L. Abramovich"
-CONTACT="https://github.com/leo-arch"
+WEBSITE="https://github.com/leo-arch/xaide"
 VERSION="0.3.1"
 DATE="Dec 10, 2020"
 
@@ -69,7 +69,7 @@ function help ()
 
 function version ()
 {
-	echo -e "$NAME $VERSION\n$DATE ($AUTHOR)\nContact: $CONTACT"
+	echo -e "$NAME $VERSION\n$DATE ($AUTHOR)\nWebsite: $WEBSITE"
 }
 
 function bonus ()

@@ -57,7 +57,8 @@ function echoerr ()
 
 function help ()
 {
-	echo "Usage: $NAME [OPTIONS]"
+	echo -e "A lightwheight file intergrity checker.
+Usage: $NAME [OPTIONS]\n"
 	echo -e "  -c\tCheck files against database\n\
   -d\tRemove all databases\n\
   -h\tPrint this help\n\

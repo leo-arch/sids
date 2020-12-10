@@ -22,7 +22,7 @@
 NAME="xaide"
 AUTHOR="L. Abramovich"
 WEBSITE="https://github.com/leo-arch/xaide"
-VERSION="0.3.1"
+VERSION="0.3.2"
 DATE="Dec 10, 2020"
 
 CONFIG_DIR="$HOME/.config/$NAME"
@@ -65,7 +65,9 @@ Usage: $NAME [OPTIONS]\n"
   -i\tInitialize the database\n\
   -l\tList currently protected files\n\
   -q\tDo not print anything to STDOUT. It only works with -c and -i options\n\
-  -v\tPrint version information"
+  -v\tPrint version information
+  
+Logs are stored in /var/log/${NAME}.log"
 }
 
 function version ()
@@ -93,9 +95,22 @@ function check_id ()
 }
 
 function check_config ()
-# Check configuration directories and files for existence, correct ownership 
-# and permissions
+# Check dependencies, configuration directories and files for existence, 
+# correct ownership and permissions
 {
+	# Make sure sha512sum and find are there: we need them to generate file hashes
+	if ! [[ $(type -P sha512sum) ]]; then
+		echoerr "sha512sum: No such file or directory"
+		log "sha512sum: No such file or directory"
+		exit $ERROR
+	fi
+
+	if ! [[ $(type -P find) ]]; then
+		echoerr "find: No such file or directory"
+		log "find: No such file or directory"
+		exit $ERROR
+	fi
+
 	# If the config directory does not exist, create it
 	if ! [[ -d "$CONFIG_DIR" ]]; then
 		if ! /usr/bin/mkdir -p "$CONFIG_DIR"; then
@@ -221,15 +236,15 @@ function check_db ()
 
 	# If everything is fine
 	if [[ $err_count -eq 0 ]]; then
-		[[ $quiet -eq 0 ]] && echo -e "$g$NAME: No problem was found$nc"		
-		log "$NAME: No problem was found"
+		[[ $quiet -eq 0 ]] && echo -e "\n${g}[+]$nc No problem was found"		
+		log "[+] No problem was found"
 	# If there were errors
 	elif [[ $err_count -gt 1 ]]; then
-		[[ $quiet -eq 0 ]] && echo -e "$r$NAME: $err_count files were modified$nc"
-		log "$NAME: $err_count files were modified"
+		[[ $quiet -eq 0 ]] && echo -e "\n${r}[-]$nc $err_count files were modified"
+		log "[-] $err_count files were modified"
 	else
-		[[ $quiet -eq 0 ]] && echo -e "$r$NAME: 1 file was modified$nc"
-		log "$NAME: 1 file was modified"
+		[[ $quiet -eq 0 ]] && echo -e "\n${r}[-]$nc 1 file was modified"
+		log "[-] 1 file was modified"
 	fi
 
 	# Print the last database update
@@ -378,16 +393,16 @@ to do"
 	done
 
 	if [[ -f "$DB_FILE" ]]; then
-		[[ $quiet -eq 0 ]] && echo "Database successfully generated"
-		log "Database successfully generated"
+		[[ $quiet -eq 0 ]] && echo -e "\n$g[+]${nc} Database successfully generated"
+		log "[+] Database successfully generated"
 		# Do not allow anyone but root to read/write this database
 		/usr/bin/chown 0:0 "$DB_FILE"
 		/usr/bin/chmod 600 "$DB_FILE"
 	else
 		if [[ $quiet -eq 0 ]]; then
-			echoerr "Error generating the database. Try again"
+			echoerr "${r}[-]$ncError generating the database. Try again"
 		fi
-		log "Error generating the database. Try again"
+		log "[-] Error generating the database. Try again"
 		exit $ERROR
 	fi
 }
@@ -395,8 +410,11 @@ to do"
 function del_db ()
 {
 	if /usr/bin/rm "$DB_FILE"*; then
-		echo "All databases were removed"
-		log "All databases were removed"
+		echo -e "${g}[+]$nc All databases were removed"
+		log "[+] All databases were removed"
+	else
+		echoerr "${r}[-]$nc Error removing databases"
+		log "[-] Error removing databases"
 	fi
 }
 
@@ -419,13 +437,6 @@ function list_db ()
 						##################
 
 quiet=0
-
-# Make sure sha512sum is there: we need it to generate file hashes
-if ! [[ $(type -P sha512sum) ]]; then
-	echoerr "sha512sum: No such file or directory"
-	log "sha512sum: No such file or directory"
-	exit $ERROR
-fi
 
 # If not parameter was passed, print help and exit
 if [[ -z $1 ]]; then
@@ -468,7 +479,7 @@ while getopts ":bcdhilqv" opt; do
 		
 		v) version ;;
 
-		\?) echo "$OPTARG: Invalid argument"; exit $ERROR
+		\?) echoerr "$OPTARG: Invalid argument"; exit $ERROR
 	esac
 done
 

@@ -1,7 +1,7 @@
 # Maintainer: archcrack <johndoe.arch@outlook.com>
 
 pkgname=xaide
-pkgver=0.3.1
+pkgver=0.3.2
 pkgrel=1
 pkgdesc=""
 arch=(any)

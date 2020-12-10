@@ -22,7 +22,7 @@
 NAME="xaide"
 AUTHOR="L. Abramovich"
 WEBSITE="https://github.com/leo-arch/xaide"
-VERSION="0.3.2"
+VERSION="0.3.1"
 DATE="Dec 10, 2020"
 
 CONFIG_DIR="$HOME/.config/$NAME"
@@ -220,11 +220,11 @@ function check_db ()
 		# If they do not match, the file has been modified
 		if [[ "$tmp_hash" != "$hash" ]]; then
 			if [[ $quiet -eq 0 ]]; then
-				echo -e "$r$file: MODIFED$nc"
+				echo -e "$r$file: MODIFIED$nc"
 				# NOT WORKING
 #				read -sp "Press Enter key to continue ... " any
 			fi
-			log "$file: MODIFED"
+			log "$file: MODIFIED"
 			let err_count++
 		else
 			[[ $quiet -eq 0 ]] && echo "$file"

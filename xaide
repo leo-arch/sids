@@ -1,0 +1,474 @@
+#!/usr/bin/env bash
+
+						  ##############
+						  #    XAIDE   #
+						  ##############
+
+# Script to perform file integrity checks using SHA-512 hashing algorithm.
+
+# How it works: It hashes all files specified in the configuration file; if
+# a file is a directory, all regular files in this directory will be hashed,
+# except those excluded (preceded by an exclamation mark (!)).
+# Then it stores all hashes in a database (-i option) to be able to compare
+# later (-c option) these stored hashes to the hashes of the same files as
+# they are currently in the filesystem. If the hashes don't match, the file
+# has changed.
+
+
+						###################
+						#    VARIABLES    #
+						###################
+
+NAME="xaide"
+AUTHOR="L. Abramovich"
+CONTACT="https://github.com/leo-arch"
+VERSION="0.3.1"
+DATE="Dec 10, 2020"
+
+CONFIG_DIR="$HOME/.config/$NAME"
+CONFIG_FILE="$CONFIG_DIR/${NAME}.conf"
+DB_FILE="$CONFIG_DIR/${NAME}db"
+LOG_FILE="/var/log/${NAME}.log"
+
+SUCCESS=0
+ERROR=1
+
+CUR_DATE="$(/usr/bin/date "+%F %H:%M %z")"
+
+# Colors
+r="\033[1;31m"
+g="\033[1;32m"
+#y="\033[1;33m"
+#b="\033[1;34m"
+#m="\033[1;35m"
+#c="\033[1;36m"
+#w="\033[0m\e[1m"
+nc="\033[0m"
+
+
+				##############################
+				#   FUNCTIONS DEFINITIONS    #
+				##############################
+
+function echoerr ()
+{
+	echo -e "$@" >&2
+}
+
+function help ()
+{
+	echo "Usage: $NAME [OPTIONS]"
+	echo -e "  -c\tCheck files against database\n\
+  -d\tRemove all databases\n\
+  -h\tPrint this help\n\
+  -i\tInitialize the database\n\
+  -l\tList currently protected files\n\
+  -q\tDo not print anything to STDOUT. It only works with -c and -i options\n\
+  -v\tPrint version information"
+}
+
+function version ()
+{
+	echo -e "$NAME $VERSION\n$DATE ($AUTHOR)\nContact: $CONTACT"
+}
+
+function bonus ()
+{
+	echo "\"Hey, look behind you, a three-headed monkey!\" (GT)"
+}
+
+function log ()
+{
+	echo "[$CUR_DATE] $1" >> "$LOG_FILE"
+}
+
+function check_id ()
+# Make sure we're running as root
+{
+	if [[ $EUID -ne 0 ]]; then
+		echoerr "You must run this script as root"
+		exit $ERROR
+	fi
+}
+
+function check_config ()
+# Check configuration directories and files for existence, correct ownership 
+# and permissions
+{
+	# If the config directory does not exist, create it
+	if ! [[ -d "$CONFIG_DIR" ]]; then
+		if ! /usr/bin/mkdir -p "$CONFIG_DIR"; then
+			echoerr "Error creating the configuration directory"
+			log "Error creating the configuration directory"
+			exit $ERROR
+		fi
+	fi
+
+	# Make sure CONFIG_DIR is owned by root:root
+	if [[ $(/usr/bin/stat -c "%u:%g" "$CONFIG_DIR") != "0:0" ]]; then
+		/usr/bin/chown 0:0 "$CONFIG_DIR"
+	fi
+
+	# Always check if CONFIG_DIR permissions are 700
+	if [[ $(/usr/bin/stat -c %a "$CONFIG_DIR") -ne 700 ]]; then
+		/usr/bin/chmod 700 "$CONFIG_DIR"
+	fi
+
+	# If the config file does not exist, create it
+	if ! [[ -f "$CONFIG_FILE" ]]; then
+		echo -e "#\n# This is $NAME configuration file\n#\n\n\
+#Add here those files and directories you want to be protected.
+#Wildarcards are allowed. To exclude a file or a directory use the 
+#exclamation mark. Example:\n\n\
+#/etc/passwd
+#/etc/shadow
+#/etc/group
+#/etc/gshadow
+#/etc/sudoers
+#/etc/sudoers.d
+#/etc/fstab
+#/etc/ssh/sshd_config
+#/etc/samba/smb.conf
+#/etc/systemd/system
+#/usr/lib/systemd/system
+#!/usr/lib/systemd/system/*.wants
+#/etc/sysctl.conf
+#/etc/sysctl.d
+#/etc/hosts
+#/etc/profile
+#/etc/bash.bashrc
+#/etc/iptables
+#/etc/pam.d
+#/etc/security
+#/etc/securetty
+#/etc/login.defs
+#/etc/crontab
+#/etc/anacrontab
+#/etc/cron.*
+#/var/spool/cron
+#/home/user/.ssh
+#!/home/user/.ssh/known_hosts
+#/home/user/.bashrc
+#/home/user/.bash_profile
+#/home/user/.bash_logout" > "$CONFIG_FILE"
+
+		echo -e "New configuration file created. Edit '$CONFIG_FILE' and \
+then run '$NAME -i' to initialize the database"
+		log "New configuration file created. Edit '$CONFIG_FILE' and \
+then run '$NAME -i' to initialize the database"
+		exit $SUCCESS
+	else
+		# Do not allow anyone but root to read/write either the config file 
+		# or the databases
+		/usr/bin/chown 0:0 "$CONFIG_DIR"/*
+		/usr/bin/chmod 600 "$CONFIG_DIR"/*
+	fi
+}
+
+function check_db ()
+# Check all files in the database against same files in filesystem
+{
+	# If no database was generated yet
+	if ! [[ -f "$DB_FILE" ]]; then
+		echoerr "Database file not found. Run '$NAME -i' to create it"
+		log "Database file not found. Run '$NAME -i' to create it"
+		exit $ERROR
+	fi
+
+	log "Checking files against database..."
+
+	# Set IFS to ":", since fields in database are colon separated
+	IFS=":"
+	err_count=0
+
+	# Read the database
+	while read LINE; do
+		# Skip empty lines
+		[[ $LINE == "" || $LINE == "#"* ]] && continue
+
+		# Get filename and hash values for each database line
+		read -r file hash < <(echo "$LINE")
+
+		# If file in database cannot be found in the filesystem
+		if ! [[ -e "$file" ]]; then
+			[[ $quiet -eq 0 ]] && echo -e "$r$file: NOT FOUND$nc"
+			log "$file: NOT FOUND"
+			let err_count++
+			continue
+		fi
+		
+		# Get hash for file in filesystem
+		tmp_hash=$(/usr/bin/sha512sum "$file" | /usr/bin/cut -d" " -f1)
+
+		# Compare both hashes (database and filesystem)
+		# If they do not match, the file has been modified
+		if [[ "$tmp_hash" != "$hash" ]]; then
+			if [[ $quiet -eq 0 ]]; then
+				echo -e "$r$file: MODIFED$nc"
+				# NOT WORKING
+#				read -sp "Press Enter key to continue ... " any
+			fi
+			log "$file: MODIFED"
+			let err_count++
+		else
+			[[ $quiet -eq 0 ]] && echo "$file"
+			log "$file"
+		fi
+
+		unset file hash tmp_hash
+	done < "$DB_FILE"
+
+	# If everything is fine
+	if [[ $err_count -eq 0 ]]; then
+		[[ $quiet -eq 0 ]] && echo -e "$g$NAME: No problem was found$nc"		
+		log "$NAME: No problem was found"
+	# If there were errors
+	elif [[ $err_count -gt 1 ]]; then
+		[[ $quiet -eq 0 ]] && echo -e "$r$NAME: $err_count files were modified$nc"
+		log "$NAME: $err_count files were modified"
+	else
+		[[ $quiet -eq 0 ]] && echo -e "$r$NAME: 1 file was modified$nc"
+		log "$NAME: 1 file was modified"
+	fi
+
+	# Print the last database update
+	if [[ $quiet -eq 0 ]]; then
+		echo -e "\nNOTE: Last database update: $(/usr/bin/stat -c %y "$DB_FILE")"
+	fi
+	log "NOTE: Last database update: $(/usr/bin/stat -c %y "$DB_FILE")"
+
+	unset IFS
+}
+
+function init_db ()
+# Generate the files database
+{
+	# Make a backup of the previous database, if any
+	if [[ -f "$DB_FILE" ]]; then
+		/usr/bin/mv "$DB_FILE" "$DB_FILE".bk
+	fi
+
+	log "Generating a new database..."
+
+	# Read the configuration file
+	while read LINE; do
+
+		# Store excluded files in an array
+		if [[ "$LINE" == "!"* ]]; then
+			excluded_tmp=( $(/usr/bin/realpath "${LINE:1}" 2>/dev/null) )
+			if [[ ${#excluded_tmp[*]} -eq 0 ]]; then
+				if [[ $quiet -eq 0 ]]; then
+					echoerr "$LINE: No such file or directory"
+				fi
+				log "$LINE: No such file or directory"
+			fi
+			for (( i=0;i<${#excluded_tmp[*]};i++ )); do
+				if [[ -e "${excluded_tmp[$i]}" ]]; then
+					excluded[${#excluded[*]}]="${excluded_tmp[$i]}"
+				else
+					if [[ $quiet -eq 0 ]]; then
+						echoerr "${excluded_tmp[$i]}: No such file or directory"
+					fi
+					log "${excluded_tmp[$i]}: No such file or directory"
+				fi
+			done
+
+		# Store included files in an array
+		elif [[ "$LINE" != "" && "$LINE" != "#"* ]]; then
+			included_tmp=( $(/usr/bin/realpath "$LINE" 2>/dev/null) )
+			if [[ ${#included_tmp[*]} -eq 0 ]]; then
+				if [[ $quiet -eq 0 ]]; then
+					echoerr "$LINE: No such file or directory"
+				fi
+				log "$LINE: No such file or directory"
+			fi
+			for (( i=0;i<${#included_tmp[*]};i++ )); do
+				if [[ -e "${included_tmp[$i]}" ]]; then
+					included[${#included[*]}]="${included_tmp[$i]}"
+				else
+					if [[ $quiet -eq 0 ]]; then
+						echoerr "${included_tmp[$i]}: No such file or directory"
+					fi
+					log "${included_tmp[$i]}: No such file or directory"
+				fi
+			done
+		fi
+
+	done < "$CONFIG_FILE"
+
+	# If no file to inlcude in the database...
+	if [[ ${#included[*]} -eq 0 ]]; then
+		if [[ $quiet -eq 0 ]]; then
+			echoerr "No files included in the configuration file. \
+There is nothing to do"
+		fi
+		log "No files included in the configuration file. There is nothing \
+to do"
+		exit $ERROR
+	fi
+
+	# Set the current date
+	echo "# File generated: $(date)" > "$DB_FILE"
+
+	# Check included files
+	for (( i=0;i<${#included[*]};i++ )); do
+
+		[[ $quiet -eq 0 ]] && echo "Hashing ${included[$i]} ..."
+		log "Hashing ${included[$i]} ..."
+
+		# If directory, hash all regular files contained in it, except those
+		# excluded via "!"
+		if [[ -d "${included[$i]}" ]]; then
+
+			files_list=( $(/usr/bin/find "${included[$i]}") )
+
+			for (( j=0;j<${#files_list[*]};j++ )); do
+				
+				# Exclude directories: we will hash only regular files 
+				# (and symlinks)
+				[[ -d "${files_list[$j]}" ]] && continue
+			
+				is_excluded=0
+				
+				for (( k=0;k<${#excluded[*]};k++ )); do
+						
+					# If excluded file is a directory
+					if [[ -d ${excluded[$k]} ]]; then
+						
+						# If excluded dir has no final slash, add it
+						if [[ ${excluded[$k]: -1} != '/' ]]; then
+							excluded[$k]="${excluded[$k]}/"
+						fi
+						 
+						if [[ ${files_list[$j]} == "${excluded[$k]}"* ]]; then
+							is_excluded=1
+						fi
+
+					# If excluded file is NOT a directory
+					else
+						if [[ ${files_list[$j]} == ${excluded[$k]} ]]; then
+							is_excluded=1
+						fi
+					fi
+				done
+				
+				# If files is not excluded, hash it and add it to the
+				# database 
+				if [[ is_excluded -eq 0 ]]; then
+					/usr/bin/sha512sum "${files_list[$j]}" \
+					| /usr/bin/awk '{print $2":"$1}' >> "$DB_FILE"
+				fi
+			
+			done
+
+		# If regular file or simlink
+		# NOTE: The hash for a symlink is the same as the one for the
+		# symlinked file
+		elif [[ -f "${included[$i]}" || -L "${included[$i]}" ]]; then
+			echo "${included[$i]}:$(/usr/bin/sha512sum "${included[$i]}" \
+			| /usr/bin/cut -d" " -f1)" >> "$DB_FILE"
+
+		# Do not allow anything but directories, regular files and symlinks
+		else
+			echo "${included[$i]}: Unsupported file type"
+			log "${included[$i]}: Unsupported file type"
+		fi
+
+	done
+
+	if [[ -f "$DB_FILE" ]]; then
+		[[ $quiet -eq 0 ]] && echo "Database successfully generated"
+		log "Database successfully generated"
+		# Do not allow anyone but root to read/write this database
+		/usr/bin/chown 0:0 "$DB_FILE"
+		/usr/bin/chmod 600 "$DB_FILE"
+	else
+		if [[ $quiet -eq 0 ]]; then
+			echoerr "Error generating the database. Try again"
+		fi
+		log "Error generating the database. Try again"
+		exit $ERROR
+	fi
+}
+
+function del_db ()
+{
+	if /usr/bin/rm "$DB_FILE"*; then
+		echo "All databases were removed"
+		log "All databases were removed"
+	fi
+}
+
+function list_db ()
+{
+	counter=0
+	while read LINE; do
+		[[ $LINE == "" || $LINE == "#"* ]] && continue 
+		let counter++
+		echo "$LINE"
+	done < "$CONFIG_FILE"
+
+	if [[ $counter -eq 0 ]]; then
+		echo "There are currently no protected files"
+	fi
+}
+
+						##################
+						#      MAIN      #
+						##################
+
+quiet=0
+
+# Make sure sha512sum is there: we need it to generate file hashes
+if ! [[ $(type -P sha512sum) ]]; then
+	echoerr "sha512sum: No such file or directory"
+	log "sha512sum: No such file or directory"
+	exit $ERROR
+fi
+
+# If not parameter was passed, print help and exit
+if [[ -z $1 ]]; then
+	help
+	exit $SUCCESS
+fi
+
+# Process arguments
+while getopts ":bcdhilqv" opt; do
+	case $opt in
+		b) bonus ;;
+
+		c) 
+			check_id
+			check_config
+			check_db
+		;;
+
+		d)
+			check_id
+			check_config
+			del_db
+		;;
+
+		h) help ;;
+
+		i)
+			check_id
+			check_config
+			init_db
+		;;
+
+		l) 
+			check_id
+			check_config
+			list_db
+		;;
+
+		q) quiet=1 ;;
+		
+		v) version ;;
+
+		\?) echo "$OPTARG: Invalid argument"; exit $ERROR
+	esac
+done
+
+exit $SUCCESS

@@ -21,7 +21,7 @@
 
 NAME="sids"
 AUTHOR="L. Abramovich"
-WEBSITE="https://github.com/leo-arch/xaide"
+WEBSITE="https://github.com/leo-arch/sids"
 VERSION="0.3.2"
 DATE="Dec 10, 2020"
 
@@ -57,7 +57,7 @@ function echoerr ()
 
 function help ()
 {
-	echo -e "A lightwheight file intergrity checker.
+	echo -e "A lightwheight file integrity checker.
 Usage: $NAME [OPTIONS]\n"
 	echo -e "  -c\tCheck files against database\n\
   -d\tRemove all databases\n\

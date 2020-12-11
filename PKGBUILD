@@ -1,12 +1,12 @@
 # Maintainer: archcrack <johndoe.arch@outlook.com>
 
 pkgname=sids
-pkgver=0.4.0
+pkgver=0.4.1
 pkgrel=1
 pkgdesc="A Simple Instrusion Detection System written in Bash"
 arch=(any)
 url="https://github.com/leo-arch/sids"
-license=(GPL2+)
+license=(GPL3)
 depends=('coreutils' 'gawk' 'findutils')
 makedepends=('git')
 source=("git+${url}.git")

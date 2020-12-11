@@ -24,7 +24,7 @@
 NAME="sids"
 AUTHOR="L. Abramovich"
 WEBSITE="https://github.com/leo-arch/sids"
-VERSION="0.4.0"
+VERSION="0.4.1"
 DATE="Dec 11, 2020"
 
 CONFIG_DIR="/etc/$NAME"
@@ -217,6 +217,10 @@ function check_db ()
 		fi
 		
 		modified=0
+		hash_mod=0
+		own_mod=0
+		group_mod=0
+		perm_mod=0
 		
 		# Get hash for file in filesystem
 		tmp_hash=$(/usr/bin/sha512sum "$file" | /usr/bin/cut -d" " -f1)
@@ -225,22 +229,33 @@ function check_db ()
 		# If they do not match, the file has been modified
 		if [[ "$tmp_hash" != "$hash" ]]; then
 			modified=1
-		# If the hashes match, check owner, group, and permissions
-		elif [[ $(/usr/bin/stat -c "%u:%g:%a" "$file") \
-		!= "${owner}:${group}:$perms" ]]; then
-			modified=1
-		else
-			[[ $quiet -eq 0 ]] && echo "$file"
-			log "$file"
+			hash_mod=1
 		fi
 
-		if [[ $modified -eq 1 ]]; then
+		# Now compare owner, group, and permissions
+		read ow gr pr < <(/usr/bin/stat -c "%u:%g:%a" "$file")
+		[[ "$ow" != "$owner" ]] && own_mod=1
+		[[ "$gr" != "$group" ]] && group_mod=1
+		[[ "$pr" != "$perms" ]] && perm_mod=1
+		if [[ $own_mod -eq 1 || $group_mod -eq 1 || $perm_mod -eq 1 ]]; then
+			modified=1
+		fi
+
+		if [[ $modified -eq 0 ]]; then
+			[[ $quiet -eq 0 ]] && echo "$file"
+			log "$file"
+		else
+			# If there was some modification, inform the user (and log) what
+			# was modified exactly
+			mod_str=""
+			[[ $hash_mod -eq 1 ]] && mod_str="$mod_str hash"
+			[[ $own_mod -eq 1 ]] && mod_str="$mod_str owner"
+			[[ $group_mod -eq 1 ]] && mod_str="$mod_str group"
+			[[ $perm_mod -eq 1 ]] && mod_str="$mod_str permissions"
 			if [[ $quiet -eq 0 ]]; then
-				echo -e "$r$file: MODIFIED$nc"
-				# NOT WORKING
-#				read -sp "Press Enter key to continue ... " any
+				echo -e "$r$file: MODIFIED:$mod_str$nc"
 			fi
-			log "$file: MODIFIED"
+			log "$file: MODIFIED:$mod_str"
 			let err_count++
 		fi
 

@@ -1,2 +1,2 @@
-# xaide
-A lightweight file integrity checker written in Bash
+# sids
+A lightweight and simple HIDS (Host-based Intrusion Detection System) written in Bash

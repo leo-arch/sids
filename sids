@@ -283,6 +283,8 @@ function check_db ()
 	log "NOTE: Last database update: $(/usr/bin/stat -c %y "$DB_FILE")"
 
 	unset IFS
+
+	[[ $err_count -gt 0 ]] && exit $ERROR
 }
 
 function init_db ()

@@ -8,13 +8,14 @@
 # to perform file integrity checks: file hash (SHA512), owner, group, and
 # permissions.
 
-# How it works: It hashes all files specified in the configuration file; if
-# a file is a directory, all regular files in this directory will be hashed,
+# How it works: It hashes all files specified in the configuration file and
+# keeps a record of owner, group, and permissions of each file; if
+# a file is a directory, all regular files in this directory will recorded,
 # except those excluded (preceded by an exclamation mark (!)).
-# Then it stores all hashes in a database (-i option) to be able to compare
-# later (-c option) these stored hashes to the hashes of the same files as
-# they are currently in the filesystem. If the hashes don't match, the file
-# has changed.
+# Then it stores all hashes and file data in a database (-i option) to be able 
+# to compare later (-c option) this information to the current state of the 
+# same files in the filesystem. If somethong doesn't match, the file
+# has been modified.
 
 
 						###################
@@ -248,7 +249,7 @@ function check_db ()
 			# If there was some modification, inform the user (and log) what
 			# was modified exactly
 			mod_str=""
-			[[ $hash_mod -eq 1 ]] && mod_str="$mod_str hash"
+			[[ $hash_mod -eq 1 ]] && mod_str="$mod_str content"
 			[[ $own_mod -eq 1 ]] && mod_str="$mod_str owner"
 			[[ $group_mod -eq 1 ]] && mod_str="$mod_str group"
 			[[ $perm_mod -eq 1 ]] && mod_str="$mod_str permissions"

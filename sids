@@ -92,7 +92,7 @@ function check_id ()
 # Make sure we're running as root
 {
 	if [[ $EUID -ne 0 ]]; then
-		echoerr "You must run this script as root"
+		echoerr "You must run this program as root"
 		exit $ERROR
 	fi
 }
@@ -175,13 +175,14 @@ function check_config ()
 then run '$NAME -i' to initialize the database"
 		log "New configuration file created. Edit '$CONFIG_FILE' and \
 then run '$NAME -i' to initialize the database"
-		exit $SUCCESS
 	else
 		# Do not allow anyone but root to read/write either the config file 
 		# or the databases
 		/usr/bin/chown 0:0 "$CONFIG_DIR"/*
 		/usr/bin/chmod 600 "$CONFIG_DIR"/*
 	fi
+
+	exit $SUCCESS
 }
 
 function check_db ()
@@ -351,7 +352,7 @@ There is nothing to do"
 		fi
 		log "No files included in the configuration file. There is nothing \
 to do"
-		exit $ERROR
+		exit $SUCCESS
 	fi
 
 	# Set the current date
@@ -431,6 +432,7 @@ to do"
 		# Do not allow anyone but root to read/write this database
 		/usr/bin/chown 0:0 "$DB_FILE"
 		/usr/bin/chmod 600 "$DB_FILE"
+		exit $SUCCESS
 	else
 		if [[ $quiet -eq 0 ]]; then
 			echoerr "${r}[-]$ncError generating the database. Try again"
@@ -445,9 +447,11 @@ function del_db ()
 	if /usr/bin/rm "$DB_FILE"*; then
 		echo -e "${g}[+]$nc All databases were removed"
 		log "[+] All databases were removed"
+		exit $SUCCESS
 	else
 		echoerr "${r}[-]$nc Error removing databases"
 		log "[-] Error removing databases"
+		exit $ERROR
 	fi
 }
 
@@ -463,6 +467,8 @@ function list_db ()
 	if [[ $counter -eq 0 ]]; then
 		echo "There are currently no protected files"
 	fi
+	
+	exit $SUCCESS
 }
 
 						##################

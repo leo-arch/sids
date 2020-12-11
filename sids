@@ -175,14 +175,13 @@ function check_config ()
 then run '$NAME -i' to initialize the database"
 		log "New configuration file created. Edit '$CONFIG_FILE' and \
 then run '$NAME -i' to initialize the database"
+		exit $SUCCESS
 	else
 		# Do not allow anyone but root to read/write either the config file 
 		# or the databases
 		/usr/bin/chown 0:0 "$CONFIG_DIR"/*
 		/usr/bin/chmod 600 "$CONFIG_DIR"/*
 	fi
-
-	exit $SUCCESS
 }
 
 function check_db ()

@@ -5,7 +5,8 @@
 						  ##############
 
 # A lightweight and simple HIDS (Host-based Intrusion Detection System) aimed
-# to perform file integrity checks using the SHA512 hashing algorithm.
+# to perform file integrity checks: file hash (SHA512), owner, group, and
+# permissions.
 
 # How it works: It hashes all files specified in the configuration file; if
 # a file is a directory, all regular files in this directory will be hashed,
@@ -23,8 +24,8 @@
 NAME="sids"
 AUTHOR="L. Abramovich"
 WEBSITE="https://github.com/leo-arch/sids"
-VERSION="0.3.2"
-DATE="Dec 10, 2020"
+VERSION="0.4.0"
+DATE="Dec 11, 2020"
 
 CONFIG_DIR="/etc/$NAME"
 CONFIG_FILE="$CONFIG_DIR/${NAME}.conf"
@@ -203,8 +204,9 @@ function check_db ()
 		# Skip empty lines
 		[[ $LINE == "" || $LINE == "#"* ]] && continue
 
-		# Get filename and hash values for each database line
-		read -r file hash < <(echo "$LINE")
+		# Get filename, hash, owber, group, and perm values for each 
+		# database line
+		read -r file hash owner group perms < <(echo "$LINE")
 
 		# If file in database cannot be found in the filesystem
 		if ! [[ -e "$file" ]]; then
@@ -214,12 +216,25 @@ function check_db ()
 			continue
 		fi
 		
+		modified=0
+		
 		# Get hash for file in filesystem
 		tmp_hash=$(/usr/bin/sha512sum "$file" | /usr/bin/cut -d" " -f1)
 
 		# Compare both hashes (database and filesystem)
 		# If they do not match, the file has been modified
 		if [[ "$tmp_hash" != "$hash" ]]; then
+			modified=1
+		# If the hashes match, check owner, group, and permissions
+		elif [[ $(/usr/bin/stat -c "%u:%g:%a" "$file") \
+		!= "${owner}:${group}:$perms" ]]; then
+			modified=1
+		else
+			[[ $quiet -eq 0 ]] && echo "$file"
+			log "$file"
+		fi
+
+		if [[ $modified -eq 1 ]]; then
 			if [[ $quiet -eq 0 ]]; then
 				echo -e "$r$file: MODIFIED$nc"
 				# NOT WORKING
@@ -227,12 +242,9 @@ function check_db ()
 			fi
 			log "$file: MODIFIED"
 			let err_count++
-		else
-			[[ $quiet -eq 0 ]] && echo "$file"
-			log "$file"
 		fi
 
-		unset file hash tmp_hash
+		unset file hash tmp_hash owner group perms
 	done < "$DB_FILE"
 
 	# If everything is fine
@@ -370,10 +382,11 @@ to do"
 				done
 				
 				# If files is not excluded, hash it and add it to the
-				# database 
+				# database, including owner, group, and permissions
 				if [[ is_excluded -eq 0 ]]; then
-					/usr/bin/sha512sum "${files_list[$j]}" \
-					| /usr/bin/awk '{print $2":"$1}' >> "$DB_FILE"
+					echo "$(/usr/bin/sha512sum "${files_list[$j]}" \
+					| /usr/bin/awk '{print $2":"$1}'):$(/usr/bin/stat \
+					-c "%u:%g:%a" "${files_list[$j]}")" >> "$DB_FILE"
 				fi
 			
 			done
@@ -383,7 +396,8 @@ to do"
 		# symlinked file
 		elif [[ -f "${included[$i]}" || -L "${included[$i]}" ]]; then
 			echo "${included[$i]}:$(/usr/bin/sha512sum "${included[$i]}" \
-			| /usr/bin/cut -d" " -f1)" >> "$DB_FILE"
+			| /usr/bin/cut -d" " -f1):$(/usr/bin/stat -c "%u:%g:%a" \
+			"${included[$i]}")" >> "$DB_FILE"
 
 		# Do not allow anything but directories, regular files and symlinks
 		else
@@ -436,6 +450,9 @@ function list_db ()
 						##################
 						#      MAIN      #
 						##################
+
+# Set a safe umask for files create here
+umask 077
 
 quiet=0
 

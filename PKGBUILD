@@ -1,7 +1,7 @@
 # Maintainer: archcrack <johndoe.arch@outlook.com>
 
 pkgname=sids
-pkgver=0.3.2
+pkgver=0.4.0
 pkgrel=1
 pkgdesc="A Simple Instrusion Detection System written in Bash"
 arch=(any)

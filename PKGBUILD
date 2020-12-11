@@ -3,7 +3,7 @@
 pkgname=sids
 pkgver=0.3.2
 pkgrel=1
-pkgdesc=""
+pkgdesc="A Simple Instrusion Detection System written in Bash"
 arch=(any)
 url="https://github.com/leo-arch/sids"
 license=(GPL2+)

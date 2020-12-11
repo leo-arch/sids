@@ -1,15 +1,16 @@
 pkgbase = sids
+	pkgdesc = A Simple Instrusion Detection System written in Bash
 	pkgver = 0.3.2
 	pkgrel = 1
-	url = https://github.com/leo-arch/xaide
+	url = https://github.com/leo-arch/sids
 	arch = any
 	license = GPL2+
 	makedepends = git
 	depends = coreutils
 	depends = gawk
 	depends = findutils
-	source = git+https://github.com/leo-arch/xaide.git
+	source = git+https://github.com/leo-arch/sids.git
 	sha256sums = SKIP
 
-pkgname = xaide
+pkgname = sids
 

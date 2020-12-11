@@ -1,5 +1,5 @@
-pkgbase = xaide
-	pkgver = 0.3.1
+pkgbase = sids
+	pkgver = 0.3.2
 	pkgrel = 1
 	url = https://github.com/leo-arch/xaide
 	arch = any

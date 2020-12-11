@@ -1,6 +1,6 @@
 # Maintainer: archcrack <johndoe.arch@outlook.com>
 
-pkgname=xaide
+pkgname=sids
 pkgver=0.3.2
 pkgrel=1
 pkgdesc=""

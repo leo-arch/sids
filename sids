@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
 						  ##############
-						  #    XAIDE   #
+						  #    SIDS    #
 						  ##############
 
 # Script to perform file integrity checks using SHA-512 hashing algorithm.
@@ -19,13 +19,13 @@
 						#    VARIABLES    #
 						###################
 
-NAME="xaide"
+NAME="sids"
 AUTHOR="L. Abramovich"
 WEBSITE="https://github.com/leo-arch/xaide"
 VERSION="0.3.2"
 DATE="Dec 10, 2020"
 
-CONFIG_DIR="$HOME/.config/$NAME"
+CONFIG_DIR="/etc/$NAME"
 CONFIG_FILE="$CONFIG_DIR/${NAME}.conf"
 DB_FILE="$CONFIG_DIR/${NAME}db"
 LOG_FILE="/var/log/${NAME}.log"

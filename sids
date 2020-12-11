@@ -4,7 +4,8 @@
 						  #    SIDS    #
 						  ##############
 
-# Script to perform file integrity checks using SHA-512 hashing algorithm.
+# A lightweight and simple HIDS (Host-based Intrusion Detection System) aimed
+# to perform file integrity checks using the SHA512 hashing algorithm.
 
 # How it works: It hashes all files specified in the configuration file; if
 # a file is a directory, all regular files in this directory will be hashed,
@@ -25,7 +26,7 @@ WEBSITE="https://github.com/leo-arch/sids"
 VERSION="0.3.2"
 DATE="Dec 10, 2020"
 
-CONFIG_DIR="/etc/$NAME"
+CONFIG_DIR="/etc/$NAME" # It could be /etc/$NAME
 CONFIG_FILE="$CONFIG_DIR/${NAME}.conf"
 DB_FILE="$CONFIG_DIR/${NAME}db"
 LOG_FILE="/var/log/${NAME}.log"

@@ -25,8 +25,8 @@
 NAME="sids"
 AUTHOR="L. Abramovich"
 WEBSITE="https://github.com/leo-arch/sids"
-VERSION="0.4.1"
-DATE="Dec 11, 2020"
+VERSION="0.4.2"
+DATE="Dec 12, 2020"
 
 CONFIG_DIR="/etc/$NAME"
 CONFIG_FILE="$CONFIG_DIR/${NAME}.conf"

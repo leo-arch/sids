@@ -201,7 +201,7 @@ function check_db ()
 	err_count=0
 
 	# Read the database
-	while read LINE; do
+	while read -r LINE; do
 		# Skip empty lines
 		[[ $LINE == "" || $LINE == "#"* ]] && continue
 
@@ -213,7 +213,7 @@ function check_db ()
 		if ! [[ -e "$file" ]]; then
 			[[ $quiet -eq 0 ]] && echo -e "$r$file: NOT FOUND$nc"
 			log "$file: NOT FOUND"
-			let err_count++
+			(( err_count++ ))
 			continue
 		fi
 		
@@ -234,7 +234,7 @@ function check_db ()
 		fi
 
 		# Now compare owner, group, and permissions
-		read ow gr pr < <(/usr/bin/stat -c "%u:%g:%a" "$file")
+		read -r ow gr pr < <(/usr/bin/stat -c "%u:%g:%a" "$file")
 		[[ "$ow" != "$owner" ]] && own_mod=1
 		[[ "$gr" != "$group" ]] && group_mod=1
 		[[ "$pr" != "$perms" ]] && perm_mod=1
@@ -257,7 +257,7 @@ function check_db ()
 				echo -e "$r$file: MODIFIED:$mod_str$nc"
 			fi
 			log "$file: MODIFIED:$mod_str"
-			let err_count++
+			(( err_count++ ))
 		fi
 
 		unset file hash tmp_hash owner group perms
@@ -298,7 +298,7 @@ function init_db ()
 	log "Generating a new database..."
 
 	# Read the configuration file
-	while read LINE; do
+	while read -r LINE; do
 
 		# Store excluded files in an array
 		if [[ "$LINE" == "!"* ]]; then
@@ -393,7 +393,7 @@ to do"
 
 					# If excluded file is NOT a directory
 					else
-						if [[ ${files_list[$j]} == ${excluded[$k]} ]]; then
+						if [[ ${files_list[$j]} == "${excluded[$k]}" ]]; then
 							is_excluded=1
 						fi
 					fi
@@ -426,7 +426,7 @@ to do"
 	done
 
 	if [[ -f "$DB_FILE" ]]; then
-		[[ $quiet -eq 0 ]] && echo -e "\n$g[+]${nc} Database successfully generated"
+		[[ $quiet -eq 0 ]] && echo -e "\n${g}[+]${nc} Database successfully generated"
 		log "[+] Database successfully generated"
 		# Do not allow anyone but root to read/write this database
 		/usr/bin/chown 0:0 "$DB_FILE"
@@ -434,7 +434,7 @@ to do"
 		exit $SUCCESS
 	else
 		if [[ $quiet -eq 0 ]]; then
-			echoerr "${r}[-]$ncError generating the database. Try again"
+			echoerr "${r}[-]${nc}Error generating the database. Try again"
 		fi
 		log "[-] Error generating the database. Try again"
 		exit $ERROR
@@ -457,9 +457,9 @@ function del_db ()
 function list_db ()
 {
 	counter=0
-	while read LINE; do
+	while read -r LINE; do
 		[[ $LINE == "" || $LINE == "#"* ]] && continue 
-		let counter++
+		(( counter++ ))
 		echo "$LINE"
 	done < "$CONFIG_FILE"
 

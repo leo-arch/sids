@@ -6,6 +6,7 @@ pkgbase = sids
 	arch = any
 	license = GPL3
 	makedepends = git
+	depends = bash
 	depends = coreutils
 	depends = gawk
 	depends = findutils

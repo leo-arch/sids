@@ -25,8 +25,8 @@
 NAME="sids"
 AUTHOR="L. Abramovich"
 WEBSITE="https://github.com/leo-arch/sids"
-VERSION="0.4.2"
-DATE="Dec 12, 2020"
+VERSION="0.4.3"
+DATE="Dec 15, 2020"
 
 CONFIG_DIR="/etc/$NAME"
 CONFIG_FILE="$CONFIG_DIR/${NAME}.conf"
@@ -360,8 +360,10 @@ to do"
 	# Check included files
 	for (( i=0;i<${#included[*]};i++ )); do
 
-		[[ $quiet -eq 0 ]] && echo "Hashing ${included[$i]} ..."
-		log "Hashing ${included[$i]} ..."
+		if [[ ${excluded[*]} != *"${included[$i]}"* ]]; then
+			[[ $quiet -eq 0 ]] && echo "Hashing ${included[$i]} ..."
+			log "Hashing ${included[$i]} ..."
+		fi
 
 		# If directory, hash all regular files contained in it, except those
 		# excluded via "!"
@@ -413,6 +415,7 @@ to do"
 		# NOTE: The hash for a symlink is the same as the one for the
 		# symlinked file
 		elif [[ -f "${included[$i]}" || -L "${included[$i]}" ]]; then
+			[[ ${excluded[*]} == *"${included[$i]}"* ]] && continue
 			echo "${included[$i]}:$(/usr/bin/sha512sum "${included[$i]}" \
 			| /usr/bin/cut -d" " -f1):$(/usr/bin/stat -c "%u:%g:%a" \
 			"${included[$i]}")" >> "$DB_FILE"

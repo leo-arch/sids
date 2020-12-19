@@ -17,6 +17,8 @@
 # same files in the filesystem. If somethong doesn't match, the file
 # has been modified.
 
+# TODO list
+# Add modification time if the file was modified
 
 						###################
 						#    VARIABLES    #
@@ -25,8 +27,8 @@
 NAME="sids"
 AUTHOR="L. Abramovich"
 WEBSITE="https://github.com/leo-arch/sids"
-VERSION="0.4.3"
-DATE="Dec 15, 2020"
+VERSION="0.4.5"
+DATE="Dec 19, 2020"
 
 CONFIG_DIR="/etc/$NAME"
 CONFIG_FILE="$CONFIG_DIR/${NAME}.conf"
@@ -64,10 +66,12 @@ function help ()
 Usage: $NAME [OPTIONS]\n"
 	echo -e "  -c\tCheck files against database\n\
   -d\tRemove all databases\n\
+  -g\tPrint the log file
   -h\tPrint this help\n\
   -i\tInitialize the database\n\
   -l\tList currently protected files\n\
   -q\tDo not print anything to STDOUT. It only works with -c and -i options\n\
+  -s STR\tSearch for STR in the log file
   -v\tPrint version information
   
 Logs are stored in /var/log/${NAME}.log"
@@ -253,10 +257,12 @@ function check_db ()
 			[[ $own_mod -eq 1 ]] && mod_str="$mod_str owner"
 			[[ $group_mod -eq 1 ]] && mod_str="$mod_str group"
 			[[ $perm_mod -eq 1 ]] && mod_str="$mod_str permissions"
+			# Inform the modification time as well
+			mtime="$(/usr/bin/stat -c "%y" "$file")"
 			if [[ $quiet -eq 0 ]]; then
-				echo -e "$r$file: MODIFIED:$mod_str$nc"
+				echo -e "$r$file: MODIFIED:$mod_str ($mtime)$nc"
 			fi
-			log "$file: MODIFIED:$mod_str"
+			log "$file: MODIFIED:$mod_str ($mtime)"
 			(( err_count++ ))
 		fi
 
@@ -277,10 +283,12 @@ function check_db ()
 	fi
 
 	# Print the last database update
+	last_update="$(/usr/bin/date -d "@$(/usr/bin/stat -c "%Y" "$DB_FILE")" \
+	"+%a, %b %e, %Y, %T %z")"
 	if [[ $quiet -eq 0 ]]; then
-		echo -e "\nNOTE: Last database update: $(/usr/bin/stat -c %y "$DB_FILE")"
+		echo -e "\nNOTE: Last database update: $last_update"
 	fi
-	log "NOTE: Last database update: $(/usr/bin/stat -c %y "$DB_FILE")"
+	log "NOTE: Last database update: $last_update"
 
 	unset IFS
 
@@ -308,7 +316,9 @@ function init_db ()
 					echoerr "$LINE: No such file or directory"
 				fi
 				log "$LINE: No such file or directory"
+#				continue
 			fi
+
 			for (( i=0;i<${#excluded_tmp[*]};i++ )); do
 				if [[ -e "${excluded_tmp[$i]}" ]]; then
 					excluded[${#excluded[*]}]="${excluded_tmp[$i]}"
@@ -473,6 +483,27 @@ function list_db ()
 	exit $SUCCESS
 }
 
+function print_logs ()
+{
+	if ! [[ -f $LOG_FILE ]]; then
+		echoerr "$LOG_FILE: No such file or directory"
+		exit $ERROR
+	fi
+	
+	/usr/bin/cat "$LOG_FILE"
+}
+
+function search_logs ()
+{
+	if ! [[ -f $LOG_FILE ]]; then
+		echoerr "$LOG_FILE: No such file or directory"
+		exit $ERROR
+	fi
+
+	str="$1"
+	/usr/bin/grep "$str" "$LOG_FILE"
+}
+
 						##################
 						#      MAIN      #
 						##################
@@ -489,7 +520,7 @@ if [[ -z $1 ]]; then
 fi
 
 # Process arguments
-while getopts ":bcdhilqv" opt; do
+while getopts ":bcdghilqs:v" opt; do
 	case $opt in
 		b) bonus ;;
 
@@ -504,6 +535,8 @@ while getopts ":bcdhilqv" opt; do
 			check_config
 			del_db
 		;;
+
+		g) print_logs ;;
 
 		h) help ;;
 
@@ -521,9 +554,13 @@ while getopts ":bcdhilqv" opt; do
 
 		q) quiet=1 ;;
 		
+		s) search_logs "$OPTARG" ;;
+		
 		v) version ;;
 
-		\?) echoerr "$OPTARG: Invalid argument"; exit $ERROR
+		\?) echoerr "${OPTARG}: Invalid argument"; exit $ERROR ;;
+
+		*) echoerr "${OPTARG}: Option requires an argument"; exit $ERROR ;;
 	esac
 done
 

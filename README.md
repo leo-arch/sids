@@ -1,7 +1,7 @@
 # sids
 > A lightweight and simple HIDS (Host-based Intrusion Detection System) written in Bash
 
-![screenshot](https://github.com/leo-arch/sids/blob/master/sids_example.png)
+![screenshot](sids_example.png)
 
 ## Description
 

@@ -7,10 +7,9 @@ pkgdesc="A Simple Instrusion Detection System written in Bash"
 arch=(any)
 url="https://github.com/leo-arch/sids"
 license=(GPL3)
-depends=('bash' 'coreutils' 'gawk' 'findutils')
+depends=('gawk' 'findutils')
 makedepends=('git')
 source=("git+${url}.git")
-#sha256sums=('SKIP')
 sha256sums=('SKIP')
 
 package() {
